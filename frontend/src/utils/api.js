@@ -40,14 +40,14 @@ export const sqliApi = {
   
   // 易受攻击的登录
   vulnerableLogin: (username, password) => 
-    api.post('/sqli/vulnerable/login', null, {
-      params: { username, password }
+    api.post('/sqli/vulnerable/login', {
+      username, password
     }),
   
   // 安全的登录
   safeLogin: (username, password) => 
-    api.post('/sqli/safe/login', null, {
-      params: { username, password }
+    api.post('/sqli/safe/login', {
+      username, password
     }),
   
   // 易受攻击的搜索
@@ -58,9 +58,7 @@ export const sqliApi = {
   
   // 易受攻击的用户详情
   vulnerableUserDetail: (id) => 
-    api.get('/sqli/vulnerable/user', {
-      params: { id }
-    }),
+    api.get(`/sqli/vulnerable/user/${id}`),
 };
 
 // XSS API
@@ -70,32 +68,32 @@ export const xssApi = {
   
   // 反射型XSS
   reflectedXss: (input) => 
-    api.post('/xss/reflected', null, {
+    api.get('/xss/reflected', {
       params: { input }
     }),
   
   // 存储型XSS - 提交评论
-  submitComment: (comment) => 
-    api.post('/xss/stored/submit', null, {
-      params: { comment }
+  submitComment: (username, comment) => 
+    api.post('/xss/stored/comment', {
+      username, comment
     }),
   
   // 存储型XSS - 获取评论
   getComments: () => api.get('/xss/stored/comments'),
   
   // 清空评论
-  clearComments: () => api.delete('/xss/stored/clear'),
+  clearComments: () => api.delete('/xss/stored/comments'),
   
   // DOM型XSS
-  domXss: (input) => 
-    api.post('/xss/dom', null, {
-      params: { input }
+  domXss: (fragment) => 
+    api.get('/xss/dom', {
+      params: { fragment }
     }),
   
   // 安全的评论提交
-  safeSubmitComment: (comment) => 
-    api.post('/xss/safe/submit', null, {
-      params: { comment }
+  safeSubmitComment: (username, comment) => 
+    api.post('/xss/safe/comment', {
+      username, comment
     }),
 };
 
@@ -106,25 +104,25 @@ export const ssrfApi = {
   
   // 易受攻击的URL获取
   vulnerableFetch: (url) => 
-    api.post('/ssrf/vulnerable/fetch', null, {
+    api.get('/ssrf/vulnerable/fetch', {
       params: { url }
     }),
   
   // 易受攻击的图片代理
   vulnerableImageProxy: (imageUrl) => 
-    api.post('/ssrf/vulnerable/image-proxy', null, {
+    api.get('/ssrf/vulnerable/image-proxy', {
       params: { imageUrl }
     }),
   
   // 易受攻击的文件下载
   vulnerableDownload: (fileUrl) => 
-    api.post('/ssrf/vulnerable/download', null, {
+    api.get('/ssrf/vulnerable/download', {
       params: { fileUrl }
     }),
   
   // 安全的URL获取
   safeFetch: (url) => 
-    api.post('/ssrf/safe/fetch', null, {
+    api.get('/ssrf/safe/fetch', {
       params: { url }
     }),
 };
@@ -136,33 +134,27 @@ export const xxeApi = {
   
   // 易受攻击的DOM4J解析
   vulnerableDom4j: (xmlContent) => 
-    api.post('/xxe/vulnerable/dom4j', xmlContent, {
-      headers: { 'Content-Type': 'application/xml' }
-    }),
+    api.post('/xxe/vulnerable/dom4j', { xml: xmlContent }),
   
   // 易受攻击的DocumentBuilder解析
   vulnerableDocumentBuilder: (xmlContent) => 
-    api.post('/xxe/vulnerable/document-builder', xmlContent, {
-      headers: { 'Content-Type': 'application/xml' }
-    }),
+    api.post('/xxe/vulnerable/documentbuilder', { xml: xmlContent }),
   
   // 安全的XML解析
   safeXmlParse: (xmlContent) => 
-    api.post('/xxe/safe/parse', xmlContent, {
-      headers: { 'Content-Type': 'application/xml' }
-    }),
+    api.post('/xxe/safe/parse', { xml: xmlContent }),
   
-  // 文件读取XXE
-  fileReadXxe: (filePath) => 
-    api.post('/xxe/vulnerable/file-read', null, {
-      params: { filePath }
-    }),
+  // 文件读取XXE攻击演示
+  fileReadXxe: () => 
+    api.get('/xxe/attack/file-read'),
   
-  // SSRF XXE
-  ssrfXxe: (url) => 
-    api.post('/xxe/vulnerable/ssrf', null, {
-      params: { url }
-    }),
+  // SSRF XXE攻击演示
+  ssrfXxe: () => 
+    api.get('/xxe/attack/ssrf'),
+  
+  // 生成测试XML
+  generateTestXml: () => 
+    api.get('/xxe/test-xml'),
 };
 
 // RCE API

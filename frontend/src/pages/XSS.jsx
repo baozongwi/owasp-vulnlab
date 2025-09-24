@@ -6,6 +6,171 @@ import { xssApi } from '../utils/api';
 const { Title, Paragraph, Text } = Typography;
 const { TextArea } = Input;
 
+// 反射型XSS渲染组件
+const ReflectedXssRenderer = ({ output }) => {
+  const outputRef = React.useRef(null);
+  const executedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (outputRef.current && output && !executedRef.current) {
+      executedRef.current = true;
+      try {
+        // 首先设置HTML内容
+        outputRef.current.innerHTML = output;
+        
+        // 然后查找并执行script标签
+        const scripts = outputRef.current.querySelectorAll('script');
+        scripts.forEach(script => {
+          const newScript = document.createElement('script');
+          newScript.textContent = script.textContent;
+          document.body.appendChild(newScript);
+          document.body.removeChild(newScript);
+        });
+        
+        // 处理事件处理器
+        const elementsWithEvents = outputRef.current.querySelectorAll('*[onerror], *[onload], *[onmouseover], *[onclick]');
+        elementsWithEvents.forEach(element => {
+          if (element.onerror) {
+            try {
+              element.onerror();
+            } catch (e) {
+              console.log('Reflected XSS event handler executed');
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Reflected XSS execution error:', error);
+      }
+    }
+  }, [output]);
+
+  // 重置执行状态当output改变时
+  useEffect(() => {
+    executedRef.current = false;
+  }, [output]);
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <Text strong>反射型XSS输出（危险）：</Text>
+      <div 
+        ref={outputRef}
+        style={{ 
+          marginTop: 8, 
+          padding: 12, 
+          background: '#fff2e8', 
+          borderRadius: 4,
+          border: '1px solid #ffbb96'
+        }}
+      />
+    </div>
+  );
+};
+
+// 存储型XSS渲染组件
+const StoredXssRenderer = ({ comment }) => {
+  const commentRef = React.useRef(null);
+  const executedRef = React.useRef(new Set());
+
+  useEffect(() => {
+    if (commentRef.current && comment && !executedRef.current.has(comment)) {
+      executedRef.current.add(comment);
+      try {
+        // 首先设置HTML内容
+        commentRef.current.innerHTML = comment;
+        
+        // 然后查找并执行script标签
+        const scripts = commentRef.current.querySelectorAll('script');
+        scripts.forEach(script => {
+          const newScript = document.createElement('script');
+          newScript.textContent = script.textContent;
+          document.body.appendChild(newScript);
+          document.body.removeChild(newScript);
+        });
+        
+        // 处理事件处理器（如onerror, onload等）
+        const elementsWithEvents = commentRef.current.querySelectorAll('*[onerror], *[onload], *[onmouseover], *[onclick]');
+        elementsWithEvents.forEach(element => {
+          // 触发事件处理器
+          if (element.onerror) {
+            try {
+              element.onerror();
+            } catch (e) {
+              console.log('Event handler executed');
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Stored XSS execution error:', error);
+      }
+    }
+  }, [comment]);
+
+  return (
+    <div 
+      ref={commentRef}
+      style={{ 
+        marginTop: 8, 
+        padding: 12, 
+        background: '#f5f5f5', 
+        borderRadius: 4,
+        border: '1px solid #d9d9d9'
+      }}
+    />
+  );
+};
+
+// DOM型XSS渲染组件
+const DomXssRenderer = ({ script }) => {
+  const outputRef = React.useRef(null);
+  const executedRef = React.useRef(new Set());
+
+  useEffect(() => {
+    if (script && !executedRef.current.has(script)) {
+      executedRef.current.add(script);
+      try {
+        // 设置全局output元素供脚本使用
+        if (outputRef.current) {
+          outputRef.current.id = 'output';
+          // 确保全局可访问
+          window.output = outputRef.current;
+        }
+        
+        // 直接使用eval执行脚本，这是DOM型XSS最直接的方式
+        eval(script);
+      } catch (error) {
+        console.error('DOM XSS script execution error:', error);
+        // 尝试使用Function构造器
+        try {
+          const func = new Function(script);
+          func();
+        } catch (funcError) {
+          console.error('Function constructor fallback failed:', funcError);
+        }
+      }
+    }
+  }, [script]);
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <Text strong>DOM型XSS脚本（危险）：</Text>
+      <div 
+        style={{ 
+          marginTop: 8, 
+          padding: 12, 
+          background: '#fff2e8', 
+          borderRadius: 4,
+          border: '1px solid #ffbb96'
+        }}
+      >
+        <div ref={outputRef} style={{ minHeight: 20 }}></div>
+        <div style={{ marginTop: 8, fontSize: '12px', color: '#666' }}>
+          执行脚本: {script}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const XSS = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -57,7 +222,7 @@ const XSS = () => {
   const handleSubmitComment = async (values) => {
     setLoading(true);
     try {
-      const response = await xssApi.submitComment(values.comment);
+      const response = await xssApi.submitComment(values.username || 'Anonymous', values.comment);
       setResult({
         type: 'stored',
         data: response.data,
@@ -77,7 +242,7 @@ const XSS = () => {
   const handleSafeSubmitComment = async (values) => {
     setLoading(true);
     try {
-      const response = await xssApi.safeSubmitComment(values.safeComment);
+      const response = await xssApi.safeSubmitComment(values.safeUsername || 'Anonymous', values.safeComment);
       setResult({
         type: 'safe',
         data: response.data,
@@ -148,6 +313,36 @@ const XSS = () => {
         showIcon
         style={{ marginBottom: 24 }}
       />
+      
+      {/* 测试按钮 */}
+      <Card style={{ marginBottom: 16, backgroundColor: '#fff7e6' }}>
+        <Text strong>快速测试：</Text>
+        <div style={{ marginTop: 8 }}>
+          <Button 
+            onClick={() => alert('直接Alert测试')} 
+            style={{ marginRight: 8 }}
+          >
+            直接Alert测试
+          </Button>
+          <Button 
+            onClick={() => {
+              const div = document.createElement('div');
+              div.innerHTML = '<script>alert("innerHTML测试")<\/script>';
+              document.body.appendChild(div);
+            }}
+            style={{ marginRight: 8 }}
+          >
+            innerHTML测试
+          </Button>
+          <Button 
+            onClick={() => {
+              eval('alert("eval测试")');
+            }}
+          >
+            eval测试
+          </Button>
+        </div>
+      </Card>
 
       <Row gutter={[16, 16]}>
         <Col span={12}>
@@ -255,6 +450,9 @@ const XSS = () => {
             extra={<Tag color="red">高危</Tag>}
           >
             <Form onFinish={handleSubmitComment} data-form="stored-xss">
+              <Form.Item name="username" label="用户名">
+                <Input placeholder="输入用户名（可选，默认Anonymous）" />
+              </Form.Item>
               <Form.Item name="comment" label="评论内容">
                 <TextArea 
                   rows={4} 
@@ -304,6 +502,9 @@ const XSS = () => {
             extra={<Tag color="green">安全</Tag>}
           >
             <Form onFinish={handleSafeSubmitComment} data-form="safe-comment">
+              <Form.Item name="safeUsername" label="用户名">
+                <Input placeholder="输入用户名（可选，默认Anonymous）" />
+              </Form.Item>
               <Form.Item name="safeComment" label="评论内容">
                 <TextArea 
                   rows={4} 
@@ -348,17 +549,11 @@ const XSS = () => {
             renderItem={(comment, index) => (
               <List.Item>
                 <div style={{ width: '100%' }}>
-                  <Text strong>评论 #{index + 1}:</Text>
-                  <div 
-                    style={{ 
-                      marginTop: 8, 
-                      padding: 12, 
-                      background: '#f5f5f5', 
-                      borderRadius: 4,
-                      border: '1px solid #d9d9d9'
-                    }}
-                    dangerouslySetInnerHTML={{ __html: comment }}
-                  />
+                  <Text strong>评论 #{comment.id} - {comment.username}:</Text>
+                  <Text type="secondary" style={{ marginLeft: 8, fontSize: '12px' }}>
+                    {new Date(comment.timestamp).toLocaleString()}
+                  </Text>
+                  <StoredXssRenderer comment={comment.comment} />
                 </div>
               </List.Item>
             )}
@@ -380,6 +575,16 @@ const XSS = () => {
             </Tag>
           }
         >
+          {/* 反射型XSS的特殊渲染 */}
+          {result.type === 'reflected' && result.data.vulnerable_output && (
+            <ReflectedXssRenderer output={result.data.vulnerable_output} />
+          )}
+          
+          {/* DOM型XSS的特殊渲染 */}
+          {result.type === 'dom' && result.data.vulnerable_script && (
+            <DomXssRenderer script={result.data.vulnerable_script} />
+          )}
+          
           <pre style={{ 
             background: '#f5f5f5', 
             padding: 16, 

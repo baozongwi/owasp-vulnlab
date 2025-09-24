@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alert Test</title>
+</head>
+<body>
+    <h1>Alert Test Page</h1>
+    <button onclick="alert('Basic Alert Test')">Test Basic Alert</button>
+    <button onclick="testDangerousHTML()">Test Dangerous HTML</button>
+    
+    <div id="test-output"></div>
+    
+    <script>
+        function testDangerousHTML() {
+            const output = document.getElementById('test-output');
+            output.innerHTML = '<script>alert("Dangerous HTML Alert")<\/script>';
+        }
+        
+        // 立即执行一个alert测试
+        console.log('Page loaded, testing alert...');
+        setTimeout(() => {
+            alert('Page Load Alert Test');
+        }, 1000);
+    </script>
+</body>
+</html>
