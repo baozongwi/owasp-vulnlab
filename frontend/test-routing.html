@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>路由测试</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-item { margin: 10px 0; padding: 10px; border: 1px solid #ddd; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        button { margin: 5px; padding: 10px 15px; }
+    </style>
+</head>
+<body>
+    <h1>OWASP漏洞实验室 - 路由测试</h1>
+    
+    <div class="test-item">
+        <h3>测试链接</h3>
+        <button onclick="testRoute('/')">首页</button>
+        <button onclick="testRoute('/sqli')">SQL注入</button>
+        <button onclick="testRoute('/xss')">XSS</button>
+        <button onclick="testRoute('/ssrf')">SSRF</button>
+        <button onclick="testRoute('/xxe')">XXE</button>
+        <button onclick="testRoute('/rce')">RCE</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        function testRoute(path) {
+            const url = `http://localhost:3000${path}`;
+            const resultsDiv = document.getElementById('results');
+            
+            // 创建测试结果元素
+            const testDiv = document.createElement('div');
+            testDiv.className = 'test-item';
+            testDiv.innerHTML = `<strong>测试路由: ${path}</strong><br>正在测试...`;
+            resultsDiv.appendChild(testDiv);
+            
+            // 在新窗口中打开链接
+            const newWindow = window.open(url, '_blank');
+            
+            // 检查窗口是否成功打开
+            setTimeout(() => {
+                if (newWindow && !newWindow.closed) {
+                    testDiv.className = 'test-item success';
+                    testDiv.innerHTML = `<strong>测试路由: ${path}</strong><br>✅ 页面成功打开`;
+                } else {
+                    testDiv.className = 'test-item error';
+                    testDiv.innerHTML = `<strong>测试路由: ${path}</strong><br>❌ 页面打开失败`;
+                }
+            }, 1000);
+        }
+        
+        // 自动测试所有路由
+        function autoTest() {
+            const routes = ['/', '/sqli', '/xss', '/ssrf', '/xxe', '/rce'];
+            routes.forEach((route, index) => {
+                setTimeout(() => testRoute(route), index * 2000);
+            });
+        }
+        
+        // 页面加载完成后显示说明
+        window.onload = function() {
+            const info = document.createElement('div');
+            info.className = 'test-item';
+            info.innerHTML = `
+                <h3>使用说明</h3>
+                <p>1. 点击上方按钮测试各个路由</p>
+                <p>2. 绿色表示页面正常打开，红色表示有问题</p>
+                <p>3. 如果页面打开但显示空白，可能是组件加载问题</p>
+                <p>4. 请检查浏览器控制台是否有错误信息</p>
+                <button onclick="autoTest()">自动测试所有路由</button>
+            `;
+            document.body.insertBefore(info, document.getElementById('results'));
+        };
+    </script>
+</body>
+</html>

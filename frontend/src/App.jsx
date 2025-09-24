@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Typography, Card } from 'antd';
 import { 
   BugOutlined, 
@@ -19,7 +19,11 @@ import Home from './pages/Home';
 const { Header, Content, Sider } = Layout;
 const { Title } = Typography;
 
-function App() {
+// 内部组件，使用React Router hooks
+function AppContent() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const menuItems = [
     {
       key: '/',
@@ -54,59 +58,65 @@ function App() {
   ];
 
   return (
-    <Router>
-      <Layout style={{ minHeight: '100vh' }}>
-        <Header style={{ 
-          background: '#001529', 
-          padding: '0 24px',
+    <Layout style={{ minHeight: '100vh' }}>
+      <Header style={{ 
+        background: '#001529', 
+        padding: '0 24px',
+        display: 'flex',
+        alignItems: 'center'
+      }}>
+        <Title level={3} style={{ 
+          color: 'white', 
+          margin: 0,
           display: 'flex',
-          alignItems: 'center'
+          alignItems: 'center',
+          gap: '8px'
         }}>
-          <Title level={3} style={{ 
-            color: 'white', 
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <BugOutlined />
-            OWASP漏洞测试实验室
-          </Title>
-        </Header>
+          <BugOutlined />
+          OWASP漏洞测试实验室
+        </Title>
+      </Header>
+      
+      <Layout>
+        <Sider width={250} style={{ background: '#fff' }}>
+          <Menu
+            mode="inline"
+            selectedKeys={[location.pathname]}
+            style={{ height: '100%', borderRight: 0 }}
+            items={menuItems}
+            onClick={({ key }) => {
+              navigate(key);
+            }}
+          />
+        </Sider>
         
-        <Layout>
-          <Sider width={250} style={{ background: '#fff' }}>
-            <Menu
-              mode="inline"
-              defaultSelectedKeys={['/']}
-              style={{ height: '100%', borderRight: 0 }}
-              items={menuItems}
-              onClick={({ key }) => {
-                window.location.href = key;
-              }}
-            />
-          </Sider>
-          
-          <Layout style={{ padding: '24px' }}>
-            <Content style={{ 
-              background: '#fff', 
-              padding: 24, 
-              margin: 0, 
-              minHeight: 280,
-              borderRadius: '8px'
-            }}>
-              <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/sqli" element={<SqlInjection />} />
-                <Route path="/xss" element={<XSS />} />
-                <Route path="/ssrf" element={<SSRF />} />
-                <Route path="/xxe" element={<XXE />} />
-                <Route path="/rce" element={<RCE />} />
-              </Routes>
-            </Content>
-          </Layout>
+        <Layout style={{ padding: '24px' }}>
+          <Content style={{ 
+            background: '#fff', 
+            padding: 24, 
+            margin: 0, 
+            minHeight: 280,
+            borderRadius: '8px'
+          }}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/sqli" element={<SqlInjection />} />
+              <Route path="/xss" element={<XSS />} />
+              <Route path="/ssrf" element={<SSRF />} />
+              <Route path="/xxe" element={<XXE />} />
+              <Route path="/rce" element={<RCE />} />
+            </Routes>
+          </Content>
         </Layout>
       </Layout>
+    </Layout>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }

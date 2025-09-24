@@ -4,7 +4,6 @@ import { CodeOutlined, PlayCircleOutlined, SafetyOutlined, DeleteOutlined } from
 import { xssApi } from '../utils/api';
 
 const { Title, Paragraph, Text } = Typography;
-const { Panel } = Collapse;
 const { TextArea } = Input;
 
 const XSS = () => {
@@ -178,11 +177,11 @@ const XSS = () => {
               </Form.Item>
             </Form>
             
-            {vulnInfo?.types?.reflected && (
+            {vulnInfo?.test_payloads && (
               <div style={{ marginTop: 16 }}>
                 <Text strong>测试载荷：</Text>
                 <div style={{ marginTop: 8 }}>
-                  {vulnInfo.types.reflected.test_payloads.map((payload, index) => (
+                  {Object.values(vulnInfo.test_payloads).map((payload, index) => (
                     <Tag 
                       key={index}
                       style={{ margin: '2px', cursor: 'pointer', fontSize: '10px' }}
@@ -224,11 +223,11 @@ const XSS = () => {
               </Form.Item>
             </Form>
             
-            {vulnInfo?.types?.dom && (
+            {vulnInfo?.test_payloads && (
               <div style={{ marginTop: 16 }}>
                 <Text strong>测试载荷：</Text>
                 <div style={{ marginTop: 8 }}>
-                  {vulnInfo.types.dom.test_payloads.map((payload, index) => (
+                  {Object.values(vulnInfo.test_payloads).map((payload, index) => (
                     <Tag 
                       key={index}
                       style={{ margin: '2px', cursor: 'pointer', fontSize: '10px' }}
@@ -275,11 +274,11 @@ const XSS = () => {
               </Form.Item>
             </Form>
             
-            {vulnInfo?.types?.stored && (
+            {vulnInfo?.test_payloads && (
               <div style={{ marginTop: 16 }}>
                 <Text strong>测试载荷：</Text>
                 <div style={{ marginTop: 8 }}>
-                  {vulnInfo.types.stored.test_payloads.map((payload, index) => (
+                  {Object.values(vulnInfo.test_payloads).map((payload, index) => (
                     <Tag 
                       key={index}
                       style={{ margin: '2px', cursor: 'pointer', fontSize: '10px' }}
@@ -395,30 +394,42 @@ const XSS = () => {
 
       {vulnInfo && (
         <Card title="漏洞信息" style={{ marginTop: 24 }}>
-          <Collapse>
-            <Panel header="漏洞描述" key="description">
-              <Paragraph>{vulnInfo.description}</Paragraph>
-            </Panel>
-            <Panel header="防护措施" key="protection">
-              <div>
-                {Object.entries(vulnInfo.protection || {}).map(([key, value]) => (
-                  <div key={key} style={{ marginBottom: 8 }}>
-                    <Text strong>{key}:</Text> {value}
+          <Collapse
+            items={[
+              {
+                key: 'description',
+                label: '漏洞描述',
+                children: <Paragraph>{vulnInfo.description}</Paragraph>
+              },
+              {
+                key: 'protection',
+                label: '防护措施',
+                children: (
+                  <div>
+                    {Object.entries(vulnInfo.protection || {}).map(([key, value]) => (
+                      <div key={key} style={{ marginBottom: 8 }}>
+                        <Text strong>{key}:</Text> {value}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </Panel>
-            <Panel header="XSS类型说明" key="types">
-              <div>
-                {Object.entries(vulnInfo.types || {}).map(([key, type]) => (
-                  <div key={key} style={{ marginBottom: 16 }}>
-                    <Title level={5}>{type.name}</Title>
-                    <Paragraph>{type.description}</Paragraph>
+                )
+              },
+              {
+                key: 'types',
+                label: 'XSS类型说明',
+                children: (
+                  <div>
+                    {Object.entries(vulnInfo.types || {}).map(([key, description]) => (
+                      <div key={key} style={{ marginBottom: 16 }}>
+                        <Title level={5}>{key.toUpperCase()}</Title>
+                        <Paragraph>{description}</Paragraph>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </Panel>
-          </Collapse>
+                )
+              }
+            ]}
+          />
         </Card>
       )}
     </div>

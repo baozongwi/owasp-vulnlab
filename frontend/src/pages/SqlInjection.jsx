@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Form, Input, Button, Alert, Typography, Divider, Row, Col, Tag, Collapse, message } from 'antd';
-import { DatabaseOutlined, PlayCircleOutlined, SafetyOutlined } from '@ant-design/icons';
+import { DatabaseOutlined, PlayCircleOutlined, SafetyOutlined, BugOutlined } from '@ant-design/icons';
 import { sqliApi } from '../utils/api';
 
 const { Title, Paragraph, Text } = Typography;
-const { Panel } = Collapse;
 
 const SqlInjection = () => {
   const [loading, setLoading] = useState(false);
@@ -335,33 +334,45 @@ const SqlInjection = () => {
 
       {vulnInfo && (
         <Card title="漏洞信息" style={{ marginTop: 24 }}>
-          <Collapse>
-            <Panel header="漏洞描述" key="description">
-              <Paragraph>{vulnInfo.description}</Paragraph>
-            </Panel>
-            <Panel header="防护措施" key="protection">
-              <div>
-                {Object.entries(vulnInfo.protection || {}).map(([key, value]) => (
-                  <div key={key} style={{ marginBottom: 8 }}>
-                    <Text strong>{key}:</Text> {value}
-                  </div>
-                ))}
-              </div>
-            </Panel>
-            <Panel header="API接口" key="endpoints">
-              <div>
-                {Object.entries(vulnInfo.types || {}).map(([key, type]) => (
-                  <div key={key} style={{ marginBottom: 16 }}>
-                    <Title level={5}>{type.name}</Title>
-                    <Paragraph>{type.description}</Paragraph>
-                    {type.endpoints && type.endpoints.map((endpoint, index) => (
-                      <Tag key={index} style={{ marginBottom: 4 }}>{endpoint}</Tag>
+          <Collapse
+            items={[
+              {
+                key: 'description',
+                label: '漏洞描述',
+                children: <Paragraph>{vulnInfo.description}</Paragraph>
+              },
+              {
+                key: 'protection',
+                label: '防护措施',
+                children: (
+                  <div>
+                    {Object.entries(vulnInfo.protection || {}).map(([key, value]) => (
+                      <div key={key} style={{ marginBottom: 8 }}>
+                        <Text strong>{key}:</Text> {value}
+                      </div>
                     ))}
                   </div>
-                ))}
-              </div>
-            </Panel>
-          </Collapse>
+                )
+              },
+              {
+                key: 'endpoints',
+                label: 'API接口',
+                children: (
+                  <div>
+                    {Object.entries(vulnInfo.types || {}).map(([key, type]) => (
+                      <div key={key} style={{ marginBottom: 16 }}>
+                        <Title level={5}>{type.name}</Title>
+                        <Paragraph>{type.description}</Paragraph>
+                        {type.endpoints && type.endpoints.map((endpoint, index) => (
+                          <Tag key={index} style={{ marginBottom: 4 }}>{endpoint}</Tag>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )
+              }
+            ]}
+          />
         </Card>
       )}
     </div>

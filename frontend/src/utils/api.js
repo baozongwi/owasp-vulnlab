@@ -180,12 +180,22 @@ export const rceApi = {
     }),
   
   // 易受攻击的系统命令
+  vulnerableSystem: (command) => 
+    api.post('/rce/vulnerable/system', null, {
+      params: { command }
+    }),
+  
   vulnerableSystemCommand: (command) => 
     api.post('/rce/vulnerable/system', null, {
       params: { command }
     }),
   
   // 易受攻击的文件操作
+  vulnerableFile: (filename, operation) => 
+    api.post('/rce/vulnerable/file', null, {
+      params: { filename, operation }
+    }),
+  
   vulnerableFileOperation: (filename, operation) => 
     api.post('/rce/vulnerable/file', null, {
       params: { filename, operation }

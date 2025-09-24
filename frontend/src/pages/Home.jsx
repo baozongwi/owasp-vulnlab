@@ -1,5 +1,6 @@
 import React from 'react';
 import { Card, Row, Col, Typography, Alert, List, Tag, Divider } from 'antd';
+import { useNavigate } from 'react-router-dom';
 import { 
   BugOutlined, 
   CodeOutlined, 
@@ -13,6 +14,8 @@ import {
 const { Title, Paragraph, Text } = Typography;
 
 const Home = () => {
+  const navigate = useNavigate();
+  
   const vulnerabilities = [
     {
       title: 'SQL注入 (SQL Injection)',
@@ -101,7 +104,7 @@ const Home = () => {
                 项目简介
               </span>
             }
-            bordered={false}
+            variant="borderless"
           >
             <Paragraph>
               本项目基于OWASP Top 10安全风险清单，提供了一个安全的测试环境来学习和理解常见的Web应用安全漏洞。
@@ -131,7 +134,7 @@ const Home = () => {
                 使用说明
               </span>
             }
-            bordered={false}
+            variant="borderless"
           >
             <Paragraph>
               <Text strong>后端服务：</Text> Spring Boot (端口: 8080)
@@ -160,7 +163,7 @@ const Home = () => {
             漏洞模块概览
           </span>
         }
-        bordered={false}
+        variant="borderless"
       >
         <Row gutter={[16, 16]}>
           {vulnerabilities.map((vuln, index) => (
@@ -168,7 +171,7 @@ const Home = () => {
               <Card 
                 size="small" 
                 hoverable
-                onClick={() => window.location.href = vuln.path}
+                onClick={() => navigate(vuln.path)}
                 style={{ cursor: 'pointer' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -200,7 +203,7 @@ const Home = () => {
       <Card 
         title="技术栈"
         style={{ marginTop: 24 }}
-        bordered={false}
+        variant="borderless"
       >
         <Row gutter={[16, 16]}>
           <Col span={8}>
