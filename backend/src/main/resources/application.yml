@@ -1,0 +1,32 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: owasp-vulnlab
+  
+  datasource:
+    url: jdbc:h2:mem:vulnlab
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+    
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    
+  jackson:
+    serialization:
+      fail-on-empty-beans: false
+
+logging:
+  level:
+    com.owaspvulnlab: DEBUG
+    org.springframework.web: DEBUG
