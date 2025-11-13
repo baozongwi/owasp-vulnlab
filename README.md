@@ -93,83 +93,160 @@ npm run dev
 ### API测试
 参考 `POC_测试手册.md` 文件，使用curl命令进行API测试
 
-### 漏洞触发与利用指南（API示例）
+### 漏洞Writeup（代码产生点 + 触发POC）
 所有接口基址为 `http://localhost:8080/api`。
 
-```bash
-# 1) XSS
-## 反射型
-curl "http://localhost:8080/api/xss/reflected?input=<script>alert('XSS')</script>"
-## 存储型：提交恶意评论再读取
-curl -X POST "http://localhost:8080/api/xss/stored/comment" -H 'Content-Type: application/json' -d '{"username":"attacker","comment":"<img src=x onerror=alert(1)>"}'
-curl "http://localhost:8080/api/xss/stored/comments"
-## DOM型：前端页面在 /xss 中演示
+**SQL 注入**
+- 产生点
+  - 直接拼接凭据：`backend/src/main/java/com/owaspvulnlab/vulnerability/sqli/SqlInjectionService.java:34-41`
+  - 组合 LIKE 查询：`backend/src/main/java/com/owaspvulnlab/vulnerability/sqli/SqlInjectionService.java:78-83`
+  - ID拼接查询：`backend/src/main/java/com/owaspvulnlab/vulnerability/sqli/SqlInjectionService.java:105-110`
+- 触发
+  - 登录绕过：`POST /sqli/vulnerable/login`，`username=admin' OR '1'='1' --`
+  - 联合查询：`GET /sqli/vulnerable/search?keyword=' UNION SELECT id,username,password,email,role,secret FROM users --`
+  - 错误/盲注：`GET /sqli/vulnerable/user/1' AND (SELECT COUNT(*) FROM users) > 0 --`
+- 修复
+  - 使用参数化查询：`backend/src/main/java/com/owaspvulnlab/vulnerability/sqli/SqlInjectionService.java:131-139`
 
-# 2) SQL注入
-## 登录绕过
-curl -X POST "http://localhost:8080/api/sqli/vulnerable/login" -H 'Content-Type: application/json' -d '{"username":"admin'\'' OR '\''1'\''='\''1'\'' --","password":"anything"}'
-## UNION注入（查看更多字段）
-curl "http://localhost:8080/api/sqli/vulnerable/search?keyword=' UNION SELECT id,username,password,email,role,secret FROM users --"
-## 盲注/错误注入示例
-curl "http://localhost:8080/api/sqli/vulnerable/user/1' AND (SELECT COUNT(*) FROM users) > 0 --"
+**XSS**
+- 产生点
+  - 反射型：直接返回输入 `backend/src/main/java/com/owaspvulnlab/vulnerability/xss/XssService.java:21-27`
+  - 存储型：原样入库 `backend/src/main/java/com/owaspvulnlab/vulnerability/xss/XssService.java:39-47`
+  - DOM 型：拼接脚本 `backend/src/main/java/com/owaspvulnlab/vulnerability/xss/XssService.java:76-85`
+- 触发
+  - 反射型：`GET /xss/reflected?input=<script>alert('XSS')</script>`
+  - 存储型：提交 `POST /xss/stored/comment` 然后 `GET /xss/stored/comments`
+  - DOM 型：前端页面 `/xss` 执行注入片段
+- 修复
+  - 输出转义、内容安全渲染（示例：`HtmlUtils`）
 
-# 3) SSRF
-## 任意URL获取
-curl "http://localhost:8080/api/ssrf/vulnerable/fetch?url=http://example.com"
-## 图片代理
-curl "http://localhost:8080/api/ssrf/vulnerable/image-proxy?imageUrl=http://example.com/logo.png"
-## 元数据/内网探测（演示环境可能不可达）
-curl "http://localhost:8080/api/ssrf/vulnerable/fetch?url=http://169.254.169.254/latest/meta-data/"
+**SSRF**
+- 产生点
+  - 任意 URL 直连：`backend/src/main/java/com/owaspvulnlab/vulnerability/ssrf/SsrfService.java:49-56`
+  - 图片代理直连：`backend/src/main/java/com/owaspvulnlab/vulnerability/ssrf/SsrfService.java:85-93`
+  - 文件下载直连：`backend/src/main/java/com/owaspvulnlab/vulnerability/ssrf/SsrfService.java:136-144`
+- 触发
+  - `GET /ssrf/vulnerable/fetch?url=http://169.254.169.254/latest/meta-data/`
+  - `GET /ssrf/vulnerable/image-proxy?imageUrl=http://example.com/logo.png`
+- 修复
+  - 协议/域名白名单与内网IP拒绝：`backend/src/main/java/com/owaspvulnlab/vulnerability/ssrf/SsrfService.java:166-205,209-236`
 
-# 4) XXE
-## DOM4J解析（允许外部实体）
-curl -X POST "http://localhost:8080/api/xxe/vulnerable/dom4j" -H 'Content-Type: application/json' -d '{"xml":"<?xml version=\"1.0\"?><!DOCTYPE root [<!ENTITY xxe SYSTEM \"file:///etc/hosts\">]><root>&xxe;</root>"}'
-## DocumentBuilder解析（未禁用实体）
-curl -X POST "http://localhost:8080/api/xxe/vulnerable/documentbuilder" -H 'Content-Type: application/json' -d '{"xml":"<?xml version=\"1.0\"?><!DOCTYPE root [<!ENTITY xxe SYSTEM \"http://127.0.0.1\">]><root>&xxe;</root>"}'
-## 攻击辅助端点
-curl "http://localhost:8080/api/xxe/attack/file-read"
-curl "http://localhost:8080/api/xxe/attack/ssrf"
+**XXE**
+- 产生点
+  - DOM4J 默认允许外部实体：`backend/src/main/java/com/owaspvulnlab/vulnerability/xxe/XxeService.java:33-46`
+  - JAXP 默认允许外部实体：`backend/src/main/java/com/owaspvulnlab/vulnerability/xxe/XxeService.java:67-83`
+- 触发
+  - 文件读取：`POST /xxe/vulnerable/dom4j` 携带 `<!ENTITY xxe SYSTEM "file:///etc/hosts">`
+  - SSRF：`POST /xxe/vulnerable/documentbuilder` 携带 `SYSTEM "http://127.0.0.1"`
+- 修复
+  - 禁用实体与外部 DTD：`backend/src/main/java/com/owaspvulnlab/vulnerability/xxe/XxeService.java:116-126`
 
-# 5) RCE/命令执行
-## ping
-curl -X POST "http://localhost:8080/api/rce/vulnerable/ping?host=127.0.0.1"
-## 系统命令执行
-curl -X POST "http://localhost:8080/api/rce/vulnerable/system?command=id"
-## 文件操作命令
-curl -X POST "http://localhost:8080/api/rce/vulnerable/file?filename=/etc/hosts&operation=cat"
+**命令执行 / RCE**
+- 产生点
+  - 拼接 `ping` 命令并通过 shell 执行：`backend/src/main/java/com/owaspvulnlab/vulnerability/rce/RceService.java:35-48`
+  - 直接执行任意系统命令：`backend/src/main/java/com/owaspvulnlab/vulnerability/rce/RceService.java:90-103`
+  - 文件操作命令拼接：`backend/src/main/java/com/owaspvulnlab/vulnerability/rce/RceService.java:149-166`
+- 触发
+  - `POST /rce/vulnerable/system?command=id`
+  - `POST /rce/vulnerable/ping?host=127.0.0.1; whoami`
+- 修复
+  - 使用参数数组与白名单：`backend/src/main/java/com/owaspvulnlab/vulnerability/rce/RceService.java:221-241,261-306`
 
-# 6) IDOR 未授权直接对象引用
-curl "http://localhost:8080/api/idor/user/1"
+**IDOR / 过度赋值**
+- 产生点
+  - 未授权读取敏感字段：`backend/src/main/java/com/owaspvulnlab/vulnerability/idor/IdorController.java:18-25`
+  - 绑定实体并持久化（允许改 `role/secret`）：`backend/src/main/java/com/owaspvulnlab/vulnerability/idor/IdorController.java:27-45`
+- 触发
+  - `GET /idor/user/1`
+  - `POST /idor/user/update` 提交敏感字段修改
+- 修复
+  - 资源级鉴权与字段白名单
 
-# 7) Mass Assignment 过度赋值（可直接修改敏感字段）
-curl -X POST "http://localhost:8080/api/idor/user/update" -H 'Content-Type: application/json' -d '{"id":1,"username":"admin","password":"admin123","email":"admin@vulnlab.com","role":"admin","secret":"flag{modified}"}'
+**开放重定向**
+- 产生点
+  - 直接拼接跳转目标：`backend/src/main/java/com/owaspvulnlab/vulnerability/redirect/RedirectController.java:11-17`
+- 触发
+  - `GET /redirect?target=http://example.com`
+- 修复
+  - 目标白名单与相对路径跳转
 
-# 8) Open Redirect 开放重定向
-curl -I "http://localhost:8080/api/redirect?target=http://example.com"
+**文件上传 / 路径遍历**
+- 产生点
+  - 原样保存用户文件名：`backend/src/main/java/com/owaspvulnlab/vulnerability/upload/UploadController.java:17-27`
+  - 任意路径读取：`backend/src/main/java/com/owaspvulnlab/vulnerability/upload/UploadController.java:29-36`
+- 触发
+  - `POST /upload/file` 表单上传
+  - `GET /upload/read?path=../../../../etc/hosts`
+- 修复
+  - 路径规范化与存储目录限制、MIME/扩展校验
 
-# 9) 文件上传与路径遍历
-## 上传（表单）
-curl -F 'file=@README.md' "http://localhost:8080/api/upload/file"
-## 读取任意路径（演示路径遍历风险）
-curl "http://localhost:8080/api/upload/read?path=uploads/README.md"
-## 列目录
-curl "http://localhost:8080/api/upload/list?dir=uploads"
+**不安全反序列化（Java）**
+- 产生点
+  - 反序列化任意对象：`backend/src/main/java/com/owaspvulnlab/vulnerability/deserialization/DeserializationController.java:20-27`
+  - 反序列化回调副作用：`backend/src/main/java/com/owaspvulnlab/vulnerability/deserialization/EvilObject.java:17-23`
+- 触发
+  - `GET /deser/payload?msg=pwn` 获取 Base64，再 `POST /deser/vulnerable` 提交
+- 修复
+  - 使用安全的序列化格式（JSON/Protobuf），或启用反序列化类型白名单
 
-# 10) 不安全反序列化
-## 获取示例payload（Base64）
-curl "http://localhost:8080/api/deser/payload?msg=pwn"
-## 提交反序列化
-curl -X POST "http://localhost:8080/api/deser/vulnerable" -H 'Content-Type: application/json' -d '{"data":"<把上一步返回的Base64粘贴到此处>"}'
+**不安全 JWT（alg=none）**
+- 产生点
+  - 颁发无签名 token：`backend/src/main/java/com/owaspvulnlab/vulnerability/jwt/JwtController.java:19-27`
+  - 解析不校验签名：`backend/src/main/java/com/owaspvulnlab/vulnerability/jwt/JwtController.java:30-41`
+- 触发
+  - `POST /jwt/login` 获取 token，再 `GET /jwt/me?token=...`
+- 修复
+  - 强制签名算法与密钥校验，拒绝 `alg=none`
 
-# 11) 不安全 JWT（alg=none）
-## 获取不安全Token
-curl -X POST "http://localhost:8080/api/jwt/login" -H 'Content-Type: application/json' -d '{"username":"alice"}'
-## 解析（不校验签名）
-curl "http://localhost:8080/api/jwt/me?token=<上一步返回的token>"
+**ReDoS 正则拒绝服务**
+- 产生点
+  - 灾难性回溯正则：`backend/src/main/java/com/owaspvulnlab/vulnerability/regex/RegexController.java:14-19`
+- 触发
+  - `GET /regex/test?input=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`
+- 修复
+  - 使用线性回溯的正则或设置超时
 
-# 12) ReDoS 正则拒绝服务
-curl "http://localhost:8080/api/regex/test?input=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-```
+**CSRF（跨站请求伪造）**
+- 产生点
+  - 无 CSRF Token 的状态修改：`backend/src/main/java/com/owaspvulnlab/vulnerability/csrf/CsrfController.java:41-61`
+  - 登录设置可跨站使用的 `session` cookie：`backend/src/main/java/com/owaspvulnlab/vulnerability/csrf/CsrfController.java:18-30`
+- 触发
+  - 先 `POST /csrf/login?user=alice`，再从任意站点发起 `POST /csrf/transfer?to=attacker&amount=100`
+- 修复
+  - 同步/双重提交 CSRF Token，`SameSite` 与严格 CORS + 认证策略
+
+**SSTI（服务端模板注入）**
+- 产生点
+  - 处理用户提供的模板字符串：`backend/src/main/java/com/owaspvulnlab/vulnerability/ssti/SstiController.java:26-35`
+- 触发
+  - `POST /ssti/render`，`{"template":"Hello [[${T(java.lang.System).getProperty('os.name')}]]"}`
+- 修复
+  - 禁止动态模板渲染或限制表达式评估能力
+
+**NoSQL 注入（模拟）**
+- 产生点
+  - 不安全正则：`backend/src/main/java/com/owaspvulnlab/vulnerability/nosql/NosqlController.java:29-46`
+  - `$where` 动态执行：`backend/src/main/java/com/owaspvulnlab/vulnerability/nosql/NosqlController.java:49-73`
+- 触发
+  - `GET /nosql/regex?q=.*` 或 `GET /nosql/where?code=username.length()>2`
+- 修复
+  - 构建安全查询、禁用动态执行与用户控制的正则
+
+**Clickjacking（点击劫持）**
+- 产生点
+  - 可被嵌入的敏感页面：`backend/src/main/java/com/owaspvulnlab/vulnerability/clickjacking/ClickjackingController.java:13-22`
+- 触发
+  - 在任意页面用 `<iframe src="http://localhost:8080/api/clickjacking/vulnerable"></iframe>` 叠加诱导点击
+- 修复
+  - 设置 `X-Frame-Options: DENY` 或 `Content-Security-Policy: frame-ancestors 'none'`（示例：`/safe`）
+
+**HTTP 请求走私（模拟）**
+- 产生点
+  - 错误的长度/分块优先级解析：`backend/src/main/java/com/owaspvulnlab/vulnerability/smuggling/SmugglingController.java:21-31,31-47`
+- 触发
+  - `POST /smuggle/parse` 原始文本携带 `Content-Length` 与 `Transfer-Encoding: chunked` 混合，观察解析结果
+- 修复
+  - 遵循正确的解析优先级，在代理/网关层统一与规范化请求头
 
 ## 📁 项目结构
 
@@ -194,7 +271,12 @@ owasp-vulnlab/
 │   │           ├── upload/   # 文件上传与路径遍历
 │   │           ├── deserialization/ # 不安全反序列化
 │   │           ├── jwt/      # 不安全JWT
-│   │           └── regex/    # ReDoS
+│   │           ├── regex/    # ReDoS
+│   │           ├── csrf/     # CSRF
+│   │           ├── ssti/     # SSTI
+│   │           ├── nosql/    # NoSQL注入(模拟)
+│   │           ├── clickjacking/ # 点击劫持
+│   │           └── smuggling/ # 请求走私(模拟)
 └── frontend/                # React前端
 │   └── pom.xml              # Maven配置
 └── frontend/                # React前端
