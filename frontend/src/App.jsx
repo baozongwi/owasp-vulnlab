@@ -14,6 +14,7 @@ import XSS from './pages/XSS';
 import SSRF from './pages/SSRF';
 import XXE from './pages/XXE';
 import RCE from './pages/RCE';
+import More from './pages/More';
 import Home from './pages/Home';
 
 const { Header, Content, Sider } = Layout;
@@ -54,6 +55,11 @@ function AppContent() {
       key: '/rce',
       icon: <TerminalOutlined />,
       label: 'RCE远程代码执行',
+    },
+    {
+      key: '/more',
+      icon: <BugOutlined />,
+      label: '更多漏洞',
     },
   ];
 
@@ -105,6 +111,7 @@ function AppContent() {
               <Route path="/ssrf" element={<SSRF />} />
               <Route path="/xxe" element={<XXE />} />
               <Route path="/rce" element={<RCE />} />
+              <Route path="/more" element={<More />} />
             </Routes>
           </Content>
         </Layout>
